@@ -24,7 +24,7 @@
         th {
             background-color: #f4f4f4;
         }
-        .whatsapp-btn {
+        .whatsapp-btn, .epf-btn {
             background-color: #25D366;
             color: white;
             border: none;
@@ -32,7 +32,7 @@
             cursor: pointer;
             border-radius: 5px;
         }
-        .whatsapp-btn:disabled {
+        .whatsapp-btn:disabled, .epf-btn:disabled {
             background-color: gray;
             cursor: not-allowed;
         }
@@ -64,11 +64,12 @@
             <th>Phone</th>
             <th>User Id</th>
             <th>Work</th>
-             <th>Remark</th>
+            <th>Remark</th>
             <th>Assign</th>
             <th>Status</th>
             <th>WhatsApp Client</th>
             <th>WhatsApp Assignee</th>
+            <th>EPF Login</th>
         </tr>
     </thead>
     <tbody></tbody>
@@ -76,13 +77,6 @@
 
 <script>
 const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbzS1ZghfuxaYo1Ub2LAl3cb_Sh6hmpC7L_cybJGzau3gfQWjE1blcDL8jwnX3LtPABU/exec';
-
-// Fixed Assignee Phone Numbers
-const assigneePhones = {
-    "ABHIGNA": "9182338327",
-    "RAJU": "9248410298",
-    "SUNNY": "9381536952"
-};
 
 async function fetchData() {
     try {
@@ -112,30 +106,12 @@ async function fetchData() {
             const assign = person.assign || person.busname || '';
             const status = person.status || '';
 
-            // Clean client phone number
+            // Clean phone number
             phone = phone.replace(/\D/g, '');
-
-            // Get the fixed assignee phone number
-            let assignPhone = assigneePhones[assign] || ''; // Get phone from mapping
-           
-            // Generate WhatsApp link for the client
-            let whatsappClientLink = '#';
-            let clientDisabledAttr = 'disabled';
-            if (phone.length >= 10) {
-                const message = encodeURIComponent(`Hi ${name}, Reminder regarding your pending work: ${work}`);
-                whatsappClientLink = `https://wa.me/${phone}?text=${message}`;
-                clientDisabledAttr = '';
-            }
-
-            // Generate WhatsApp link for the assignee
-            let whatsappAssigneeLink = '#';
-            let assigneeDisabledAttr = 'disabled';
-            if (assignPhone.length >= 10) {
-                const message = encodeURIComponent(`Hi ${assign}, Please follow up on the pending work: ${work} for ${name}`);
-                whatsappAssigneeLink = `https://wa.me/${assignPhone}?text=${message}`;
-                assigneeDisabledAttr = '';
-            }
-
+            
+            let whatsappClientLink = phone.length >= 10 ? `https://wa.me/${phone}?text=${encodeURIComponent(`Hi ${name}, Reminder regarding your pending work: ${work}`)}` : '#';
+            let clientDisabledAttr = phone.length >= 10 ? '' : 'disabled';
+            
             const row = document.createElement("tr");
             row.innerHTML = `
                 <td>${id}</td>
@@ -152,9 +128,7 @@ async function fetchData() {
                     </a>
                 </td>
                 <td>
-                    <a href="${whatsappAssigneeLink}" target="_blank">
-                        <button class="whatsapp-btn" ${assigneeDisabledAttr}>WhatsApp Assignee</button>
-                    </a>
+                    <button class="epf-btn" onclick="openEpfLogin('${userid}', '${remark}')">Login to EPF</button>
                 </td>
             `;
             tableBody.appendChild(row);
@@ -171,21 +145,32 @@ async function fetchData() {
         document.getElementById("loading").style.display = "none";
     }
 }
-function sendBulkWhatsApp() {
-    const rows = document.querySelectorAll("#dataTable tbody tr");
-    let phoneNumbers = [];
-    rows.forEach(row => {
-        const phone = row.cells[2].innerText.replace(/\D/g, '');
-        if (phone.length >= 10) {
-            phoneNumbers.push(`https://wa.me/${phone}?text=${encodeURIComponent('Hi ${name}, Reminder regarding your pending work: ${work}')}`);
-        }
-    });
-    phoneNumbers.forEach((link, index) => {
-        setTimeout(() => { window.open(link, '_blank'); }, index * 2000);
-    });
+
+function openEpfLogin(userid, password) {
+    if (!userid || !password) {
+        alert('User ID or Password missing');
+        return;
+    }
+
+    // Copy User ID to clipboard
+    navigator.clipboard.writeText(userid)
+        .then(() => {
+            // Open the EPF login page
+            window.open("https://passbook.epfindia.gov.in/MemberPassBook/login", "_blank");
+
+            // First alert to guide the user
+            alert("User ID copied!\n\n1. Click on the User ID field in the login page.\n2. Press CTRL + V (Paste).\n3. Press TAB to move to the Password field.\n4. Click OK to copy the Password.");
+
+            // Now copy the password (inside user interaction)
+            navigator.clipboard.writeText(password)
+                .then(() => alert("Password copied! Now paste it into the Password field and log in."))
+                .catch(err => alert("Failed to copy password. Please enter it manually."));
+        })
+        .catch(err => {
+            alert("Failed to copy User ID. Please enter credentials manually.");
+        });
 }
 
-// Fetch data initially and refresh every 60 seconds
 fetchData();
 setInterval(fetchData, 60000);
 </script>
